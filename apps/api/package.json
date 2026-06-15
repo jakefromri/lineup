@@ -1,0 +1,29 @@
+{
+  "name": "@lineup/api",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch --env-file=.env src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.9.0",
+    "@hono/zod-validator": "^0.2.1",
+    "@lineup/types": "*",
+    "@supabase/supabase-js": "^2.39.7",
+    "hono": "^4.1.0",
+    "nanoid": "^5.0.6",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "tsx": "^4.7.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.4.21",
+    "vitest": "^1.6.1"
+  }
+}
