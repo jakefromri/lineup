@@ -28,6 +28,10 @@ Thumbs.db
 
 # Supabase
 .supabase/
+supabase/.temp/
+
+# Playwright
+test-results/
 
 # Logs
 logs/
