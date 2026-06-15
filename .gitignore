@@ -9,6 +9,9 @@ dist/
 build/
 .next/
 
+# Keep compiled @lineup/types so it's available without a build step
+!packages/types/dist/
+
 # Environment variables
 .env
 .env.local

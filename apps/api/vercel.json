@@ -1,3 +1,6 @@
 {
+  "framework": null,
+  "installCommand": "cd ../.. && npm install",
+  "buildCommand": "cd ../.. && npm run build --workspace=packages/types && npm run build --workspace=apps/api",
   "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
 }
