@@ -53,11 +53,10 @@ This will:
 1. Log you into Supabase and let you create or select a project
 2. Write `apps/api/.env`, `apps/web/.env`, `apps/admin/.env`
 3. Link the project and push the schema migration
-4. Create the superadmin user (`jakericciardi@gmail.com`)
+4. Create the superadmin user (email configured in `setup.sh`)
 5. Run `npm install`
 
-See `architecture.md`'s "Environment Variables" section for what each app needs if you'd
-rather set env vars by hand.
+See `.env.example` for what each app needs if you'd rather set env vars by hand.
 
 ## Development
 
@@ -109,16 +108,45 @@ supabase/
 e2e/        Playwright specs (cross-app flows)
 ```
 
-## Project docs
-
-- `idea.md` — original concept
-- `scope.md` — MVP scope, roles, tenancy model, explicit behaviors
-- `architecture.md` — full data model, RLS policies, API routes, env vars
-- `test-plan.md` — integration + e2e test scenarios
-- `build-report.md` — build notes from the implementation pass
-
 ## Deployment
 
 Follows Jake's standard three-environment workflow (local → dev → prod) — see
 `/Users/jakericciardi/brian/CLAUDE.md` and `/skunkworks/_ralph-loop/ENVIRONMENT_MANAGEMENT.md`
 for branch strategy, PR rules, and the full deploy sequence.
+
+### Vercel setup (three projects)
+
+| Project | rootDirectory | Notes |
+|---------|--------------|-------|
+| `lineup-api` | `apps/api` | Hono Edge function via `hono/vercel` |
+| `lineup-web` | `apps/web` | Vite SPA |
+| `lineup-admin` | `apps/admin` | Vite SPA |
+
+**`apps/api/vercel.json` — critical settings:**
+```json
+{
+  "installCommand": "cd ../.. && npm install",
+  "buildCommand": "cd ../.. && npm run build --workspace=packages/types && npm run build --workspace=apps/api",
+  "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
+}
+```
+- `installCommand` must run from the repo root so npm resolves workspace packages (`@lineup/types`)
+- `packages/types` must be built before `apps/api` — its `dist/` is committed and gitignore-excepted (`!packages/types/dist/`)
+- The API function runs on **Edge runtime** (`export const config = { runtime: 'edge' }` in `api/index.ts`) — do not switch to Node.js runtime; `hono/vercel`'s `handle()` only works with Web API `Request` objects which Edge provides
+
+**`apps/web/vercel.json` and `apps/admin/vercel.json` — critical settings:**
+```json
+{
+  "buildCommand": "cd ../.. && npm run build --workspace=apps/<app>",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
+```
+- The `rewrites` catch-all is required — without it, direct navigation to `/join/:token` or `/accept-invite/:token` returns Vercel 404 instead of loading the React app
+
+**Env var timing:** `VITE_*` vars and Edge function env vars are baked in at **build time**, not runtime. Changing them in the Vercel dashboard takes effect on the next deployment only — trigger a redeploy after any env var change.
+
+### Node.js / crypto compatibility
+
+The `src/lib/tokens.ts` functions use **Web Crypto API** (`globalThis.crypto`), not Node.js `crypto`. This is intentional — Node.js `crypto` is unavailable on Edge runtime. `hashToken()` is async; all call sites use `await`.
