@@ -1,14 +1,15 @@
-import { randomBytes, createHash } from 'crypto';
-
-/**
- * Generates an opaque token with the given prefix, e.g. `pat_...` or `sk_...`.
- * The raw token is shown to the caller exactly once; only its hash is stored.
- */
 export function generateToken(prefix: string, byteLength = 32): string {
-  return `${prefix}${randomBytes(byteLength).toString('hex')}`;
+  const bytes = new Uint8Array(byteLength);
+  globalThis.crypto.getRandomValues(bytes);
+  return `${prefix}${Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')}`;
 }
 
-/** SHA-256 hash of a token, hex-encoded. */
-export function hashToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
+export async function hashToken(token: string): Promise<string> {
+  const data = new TextEncoder().encode(token);
+  const buffer = await globalThis.crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buffer))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
