@@ -31,15 +31,26 @@ export default function Home() {
                 </Link>
               ))}
             </div>
+            <p className="text-center text-xs text-muted-foreground pt-1">
+              On a new device?{' '}
+              <Link to="/login" className="text-primary underline">
+                Sign in with email
+              </Link>
+            </p>
           </div>
         ) : (
-          <div className="border border-border rounded-lg p-5 text-left space-y-2 bg-muted/30">
-            <p className="text-sm font-medium text-foreground">Getting started</p>
+          <div className="space-y-4">
+            <div className="border border-border rounded-lg p-5 text-left space-y-2 bg-muted/30">
+              <p className="text-sm font-medium text-foreground">Getting started</p>
+              <p className="text-sm text-muted-foreground">
+                To register, use the join link your coach shared with you.
+              </p>
+            </div>
             <p className="text-sm text-muted-foreground">
-              To register, use the join link your coach shared with you.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Already joined? Use the team link your coach sent to view your calendar.
+              Already registered?{' '}
+              <Link to="/login" className="text-primary underline">
+                Sign in with email
+              </Link>
             </p>
           </div>
         )}

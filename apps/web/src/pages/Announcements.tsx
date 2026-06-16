@@ -1,11 +1,14 @@
 import { useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Announcement } from '@lineup/types';
 import { apiFetch } from '@/lib/api';
 import { useParentAuth } from '@/hooks/useParentAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Nav } from '@/components/Nav';
 import { RichTextView } from '@/components/RichTextView';
+import { cn } from '@/lib/utils';
+
+const ALLOWED_EMOJIS = ['👍', '👎', '❤️', '🎉', '💪', '👏'];
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -13,6 +16,74 @@ function formatDate(iso: string): string {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+function ReactionBar({
+  announcement,
+  token,
+  slug,
+}: {
+  announcement: Announcement;
+  token: string;
+  slug: string;
+}) {
+  const qc = useQueryClient();
+
+  const addReaction = useMutation({
+    mutationFn: (emoji: string) =>
+      apiFetch(`/api/announcements/${announcement.id}/reactions`, token, {
+        method: 'POST',
+        body: JSON.stringify({ emoji }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['announcements', slug] }),
+  });
+
+  const removeReaction = useMutation({
+    mutationFn: (emoji: string) =>
+      apiFetch(
+        `/api/announcements/${announcement.id}/reactions/${encodeURIComponent(emoji)}`,
+        token,
+        { method: 'DELETE' },
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['announcements', slug] }),
+  });
+
+  const toggleReaction = (emoji: string) => {
+    const existing = announcement.reactions.find((r) => r.emoji === emoji);
+    if (existing?.reactedByMe) {
+      removeReaction.mutate(emoji);
+    } else {
+      addReaction.mutate(emoji);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap pt-1">
+      {ALLOWED_EMOJIS.map((emoji) => {
+        const reaction = announcement.reactions.find((r) => r.emoji === emoji);
+        const active = reaction?.reactedByMe ?? false;
+        const count = reaction?.count ?? 0;
+
+        return (
+          <button
+            key={emoji}
+            type="button"
+            onClick={() => toggleReaction(emoji)}
+            disabled={addReaction.isPending || removeReaction.isPending}
+            className={cn(
+              'flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-colors',
+              active
+                ? 'bg-primary/10 border-primary/30 text-primary font-medium'
+                : 'border-border text-muted-foreground hover:bg-muted/60',
+            )}
+          >
+            <span>{emoji}</span>
+            {count > 0 && <span className="tabular-nums">{count}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 export default function AnnouncementsPage() {
@@ -75,6 +146,7 @@ export default function AnnouncementsPage() {
                   </span>
                 </div>
                 <RichTextView html={a.bodyHtml} />
+                <ReactionBar announcement={a} token={token!} slug={slug!} />
               </CardContent>
             </Card>
           ))
