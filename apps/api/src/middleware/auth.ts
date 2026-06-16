@@ -45,16 +45,37 @@ export const resolveAuthContext = createMiddleware(async (c, next) => {
     ctx = { type: 'apikey', tenantId: key.tenant_id };
   } else if (token.startsWith('pat_')) {
     const hash = await hashToken(token);
+
+    // Check original join token first, then multi-device session tokens
+    let parentId: string | null = null;
+    let tenantId: string | null = null;
+
     const { data: parent } = await supabaseAdmin
       .from('parents')
       .select('id, tenant_id')
       .eq('access_token_hash', hash)
       .maybeSingle();
 
-    if (!parent) {
+    if (parent) {
+      parentId = parent.id;
+      tenantId = parent.tenant_id;
+    } else {
+      const { data: session } = await supabaseAdmin
+        .from('parent_sessions')
+        .select('parent_id, tenant_id')
+        .eq('token_hash', hash)
+        .maybeSingle();
+
+      if (session) {
+        parentId = session.parent_id;
+        tenantId = session.tenant_id;
+      }
+    }
+
+    if (!parentId || !tenantId) {
       throw apiError(401, ErrorCode.UNAUTHORIZED, 'Invalid access token');
     }
-    ctx = { type: 'parent', tenantId: parent.tenant_id, parentId: parent.id };
+    ctx = { type: 'parent', tenantId, parentId };
   } else {
     const { data, error } = await supabaseAuth.auth.getUser(token);
     if (error || !data.user) {

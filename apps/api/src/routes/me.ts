@@ -27,10 +27,27 @@ app.get('/', async (c) => {
     throw apiError(404, ErrorCode.NOT_FOUND, 'Parent not found');
   }
 
+  // Return kids for all parents in the same family (co-parent support).
+  // Falls back to just the requesting parent's kids if no family_id is set.
+  const { data: requestingParentData } = await supabaseAdmin
+    .from('parents')
+    .select('family_id')
+    .eq('id', ctx.parentId)
+    .single();
+
+  let parentIdFilter: string[] = [ctx.parentId];
+  if (requestingParentData?.family_id) {
+    const { data: familyMembers } = await supabaseAdmin
+      .from('parents')
+      .select('id')
+      .eq('family_id', requestingParentData.family_id);
+    parentIdFilter = (familyMembers ?? []).map((m) => m.id);
+  }
+
   const { data: kids, error: kidsError } = await supabaseAdmin
     .from('kids')
     .select('id, name')
-    .eq('parent_id', ctx.parentId)
+    .in('parent_id', parentIdFilter)
     .is('archived_at', null)
     .order('created_at');
 
