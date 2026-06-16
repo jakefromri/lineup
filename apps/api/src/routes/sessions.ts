@@ -49,7 +49,7 @@ app.get(
 
     const { data: sessions, error: sessionsError } = await supabaseAdmin
       .from('sessions')
-      .select('id, name, date, time, location')
+      .select('id, name, date, time, end_time, location')
       .eq('tenant_id', ctx.tenantId)
       .gte('date', rangeFrom)
       .lte('date', rangeTo)
@@ -100,6 +100,7 @@ app.get(
           name: session.name,
           date: session.date,
           time: session.time,
+          endTime: session.end_time ?? null,
           location: session.location,
           attendance: relevantKids.map((kid) => ({
             kidId: kid.id,
@@ -119,6 +120,7 @@ const createSessionSchema = z.object({
   name: z.string().min(1, 'name is required'),
   date: z.string().regex(DATE_RE, 'date must be YYYY-MM-DD'),
   time: z.string().regex(TIME_RE, 'time must be HH:MM or HH:MM:SS'),
+  endTime: z.string().regex(TIME_RE, 'endTime must be HH:MM or HH:MM:SS').optional().nullable(),
   location: z.string().min(1, 'location is required'),
 });
 
@@ -133,16 +135,17 @@ app.post('/', requireContext('manager', 'apikey'), jsonValidator(createSessionSc
       name: body.name,
       date: body.date,
       time: body.time,
+      end_time: body.endTime ?? null,
       location: body.location,
     })
-    .select('id, name, date, time, location')
+    .select('id, name, date, time, end_time, location')
     .single();
 
   if (error || !session) {
     throw apiError(500, ErrorCode.INTERNAL, 'Failed to create session');
   }
 
-  return c.json({ session }, 201);
+  return c.json({ session: { ...session, endTime: session.end_time ?? null } }, 201);
 });
 
 // ─── PATCH /api/sessions/:id ──────────────────────────────────────────────────
@@ -152,6 +155,7 @@ const updateSessionSchema = z.object({
   name: z.string().min(1).optional(),
   date: z.string().regex(DATE_RE, 'date must be YYYY-MM-DD').optional(),
   time: z.string().regex(TIME_RE, 'time must be HH:MM or HH:MM:SS').optional(),
+  endTime: z.string().regex(TIME_RE, 'endTime must be HH:MM or HH:MM:SS').optional().nullable(),
   location: z.string().min(1).optional(),
 });
 
@@ -164,6 +168,7 @@ app.patch('/:id', requireContext('manager', 'apikey'), jsonValidator(updateSessi
   if (body.name !== undefined) update.name = body.name;
   if (body.date !== undefined) update.date = body.date;
   if (body.time !== undefined) update.time = body.time;
+  if (body.endTime !== undefined) update.end_time = body.endTime;
   if (body.location !== undefined) update.location = body.location;
 
   const { data: session, error } = await supabaseAdmin
@@ -171,7 +176,7 @@ app.patch('/:id', requireContext('manager', 'apikey'), jsonValidator(updateSessi
     .update(update)
     .eq('id', id)
     .eq('tenant_id', ctx.tenantId)
-    .select('id, name, date, time, location')
+    .select('id, name, date, time, end_time, location')
     .maybeSingle();
 
   if (error) {
@@ -181,7 +186,7 @@ app.patch('/:id', requireContext('manager', 'apikey'), jsonValidator(updateSessi
     throw apiError(404, ErrorCode.NOT_FOUND, 'Session not found');
   }
 
-  return c.json({ session });
+  return c.json({ session: { ...session, endTime: session.end_time ?? null } });
 });
 
 // ─── DELETE /api/sessions/:id ─────────────────────────────────────────────────
@@ -211,7 +216,8 @@ app.delete('/:id', requireContext('manager', 'apikey'), async (c) => {
 });
 
 // ─── PUT /api/sessions/:id/attendance ────────────────────────────────────────
-// Auth: parent — kidId in each update must belong to the calling parent
+// Auth: parent — kidId in each update must belong to the calling parent's
+// family (co-parents can update attendance for each other's kids).
 
 const putAttendanceSchema = z.object({
   updates: z
@@ -251,9 +257,31 @@ app.put('/:id/attendance', requireContext('parent'), jsonValidator(putAttendance
     throw apiError(500, ErrorCode.INTERNAL, 'Failed to update attendance');
   }
 
+  // Determine the set of parent IDs the requesting parent is authorised to act for.
+  // This includes their own parent_id plus any co-parents sharing the same family_id.
+  const { data: requestingParent } = await supabaseAdmin
+    .from('parents')
+    .select('family_id')
+    .eq('id', ctx.parentId)
+    .single();
+
+  const authorisedParentIds = new Set<string>([ctx.parentId]);
+
+  if (requestingParent?.family_id) {
+    const { data: familyMembers } = await supabaseAdmin
+      .from('parents')
+      .select('id')
+      .eq('family_id', requestingParent.family_id);
+
+    for (const m of familyMembers ?? []) {
+      authorisedParentIds.add(m.id);
+    }
+  }
+
   const kidMap = new Map((kids ?? []).map((k) => [k.id, k.parent_id]));
   for (const kidId of kidIds) {
-    if (kidMap.get(kidId) !== ctx.parentId) {
+    const kidParentId = kidMap.get(kidId);
+    if (!kidParentId || !authorisedParentIds.has(kidParentId)) {
       throw apiError(403, ErrorCode.FORBIDDEN, "Cannot modify another parent's kid attendance");
     }
   }

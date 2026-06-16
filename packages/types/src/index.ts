@@ -76,6 +76,7 @@ export interface Session {
   name: string;
   date: string; // YYYY-MM-DD, local wall-clock, no timezone conversion
   time: string; // HH:MM:SS, local wall-clock, no timezone conversion
+  endTime: string | null; // HH:MM:SS, optional
   location: string;
   createdAt: string;
   updatedAt: string;
@@ -94,11 +95,18 @@ export interface SessionWithAttendance {
   name: string;
   date: string;
   time: string;
+  endTime: string | null;
   location: string;
   attendance: AttendanceEntry[];
 }
 
 // ─── Announcements ───────────────────────────────────────────────────────────
+
+export interface AnnouncementReaction {
+  emoji: string;
+  count: number;
+  reactedByMe: boolean;
+}
 
 export interface Announcement {
   id: string;
@@ -106,6 +114,19 @@ export interface Announcement {
   bodyHtml: string;
   createdAt: string;
   updatedAt: string;
+  reactions: AnnouncementReaction[];
+}
+
+// ─── Co-parents & Families ──────────────────────────────────────────────────
+
+export interface CoParentInvite {
+  id: string;
+  tenantId: string;
+  familyId: string;
+  inviteToken: string;
+  invitedByParentId: string | null;
+  acceptedAt: string | null;
+  createdAt: string;
 }
 
 // ─── API Keys ────────────────────────────────────────────────────────────────

@@ -154,7 +154,9 @@ export default function CalendarPage() {
                           <div>
                             <p className="font-medium text-foreground">{s.name}</p>
                             <p className="text-sm text-muted-foreground mt-0.5">
-                              {formatTimeLabel(s.time)} · {s.location}
+                              {formatTimeLabel(s.time)}
+                              {s.endTime ? ` – ${formatTimeLabel(s.endTime)}` : ''}
+                              {' · '}{s.location}
                             </p>
                           </div>
 

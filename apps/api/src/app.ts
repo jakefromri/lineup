@@ -11,6 +11,8 @@ import meRouter from './routes/me.js';
 import kidsRouter from './routes/kids.js';
 import sessionsRouter from './routes/sessions.js';
 import announcementsRouter from './routes/announcements.js';
+import coParentRouter, { coParentManagerRouter } from './routes/coparent.js';
+import authRouter from './routes/auth.js';
 
 const app = new Hono();
 
@@ -35,11 +37,14 @@ app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOStri
 app.route('/api', publicRouter);
 app.route('/api/teams', teamsRouter);
 app.route('/api/team', teamRouter);
+app.route('/api/team/parents', coParentManagerRouter);
 app.route('/api/roster', rosterRouter);
 app.route('/api/me', meRouter);
 app.route('/api/kids', kidsRouter);
 app.route('/api/sessions', sessionsRouter);
 app.route('/api/announcements', announcementsRouter);
+app.route('/api/co-parent', coParentRouter);
+app.route('/api/auth', authRouter);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) {

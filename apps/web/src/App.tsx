@@ -2,6 +2,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Home from '@/pages/Home';
 import Join from '@/pages/Join';
+import Login from '@/pages/Login';
+import LoginCallback from '@/pages/LoginCallback';
+import CoParentInvite from '@/pages/CoParentInvite';
 import CalendarPage from '@/pages/Calendar';
 import AnnouncementsPage from '@/pages/Announcements';
 
@@ -15,7 +18,10 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/login/callback" element={<LoginCallback />} />
           <Route path="/join/:joinToken" element={<Join />} />
+          <Route path="/co-parent-invite/:inviteToken" element={<CoParentInvite />} />
           <Route path="/t/:slug" element={<Navigate to="calendar" replace />} />
           <Route path="/t/:slug/calendar" element={<CalendarPage />} />
           <Route path="/t/:slug/announcements" element={<AnnouncementsPage />} />

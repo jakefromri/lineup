@@ -65,6 +65,21 @@ app.post('/join/:joinToken', jsonValidator(joinBodySchema), async (c) => {
   const accessToken = generateToken('pat_');
   const accessTokenHash = await hashToken(accessToken);
 
+  // Create Supabase Auth user if email provided — enables magic-link login later.
+  // Non-fatal: if this fails, the parent still registers with pat_ token only.
+  let supabaseUserId: string | null = null;
+  if (body.contactEmail) {
+    try {
+      const { data: created } = await supabaseAdmin.auth.admin.createUser({
+        email: body.contactEmail,
+        email_confirm: true,
+      });
+      supabaseUserId = created.user?.id ?? null;
+    } catch {
+      // Non-fatal
+    }
+  }
+
   const { data: parent, error: parentError } = await supabaseAdmin
     .from('parents')
     .insert({
@@ -73,6 +88,7 @@ app.post('/join/:joinToken', jsonValidator(joinBodySchema), async (c) => {
       contact_email: body.contactEmail ?? null,
       contact_phone: body.contactPhone ?? null,
       access_token_hash: accessTokenHash,
+      ...(supabaseUserId ? { supabase_user_id: supabaseUserId } : {}),
     })
     .select('id, name')
     .single();

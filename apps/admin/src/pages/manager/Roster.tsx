@@ -1,9 +1,69 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { UserPlus, Copy, Check } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import type { RosterEntry } from '@lineup/types';
 import { apiFetch } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+
+function CoParentInviteButton({ parentId, token }: { parentId: string; token: string }) {
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const inviteMutation = useMutation({
+    mutationFn: () =>
+      apiFetch<{ inviteUrl: string }>(`/api/team/parents/${parentId}/co-parent-invite`, token, {
+        method: 'POST',
+      }),
+    onSuccess: (res) => setInviteUrl(res.inviteUrl),
+  });
+
+  const copyInvite = async () => {
+    if (!inviteUrl) return;
+    await navigator.clipboard.writeText(inviteUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  if (inviteUrl) {
+    return (
+      <div className="mt-2 flex items-center gap-2">
+        <span className="text-xs font-mono text-muted-foreground break-all">{inviteUrl}</span>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-6 text-xs px-2 shrink-0"
+          onClick={copyInvite}
+        >
+          {copied ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+          {copied ? 'Copied' : 'Copy'}
+        </Button>
+        <button
+          type="button"
+          className="text-xs text-muted-foreground hover:text-foreground"
+          onClick={() => setInviteUrl(null)}
+        >
+          ✕
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-6 text-xs px-2 text-muted-foreground hover:text-foreground mt-1"
+      onClick={() => inviteMutation.mutate()}
+      disabled={inviteMutation.isPending}
+    >
+      <UserPlus className="h-3 w-3 mr-1" />
+      {inviteMutation.isPending ? 'Creating…' : 'Add a caregiver'}
+    </Button>
+  );
+}
 
 export default function Roster() {
   const { token } = useAuth();
@@ -47,7 +107,10 @@ export default function Roster() {
               <tbody className="divide-y divide-border">
                 {parents.map((p) => (
                   <tr key={p.id} className="hover:bg-muted/30 align-top">
-                    <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{p.name}</td>
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-foreground whitespace-nowrap">{p.name}</p>
+                      <CoParentInviteButton parentId={p.id} token={token!} />
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       <div className="flex flex-col gap-0.5">
                         {p.contactEmail && <span>{p.contactEmail}</span>}
