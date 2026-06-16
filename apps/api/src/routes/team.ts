@@ -136,7 +136,7 @@ app.post('/api-key/regenerate', async (c) => {
   if (ctx.type !== 'manager') throw apiError(403, ErrorCode.ROLE_MISMATCH, 'Manager only');
 
   const apiKey = generateToken('sk_');
-  const keyHash = hashToken(apiKey);
+  const keyHash = await hashToken(apiKey);
 
   const { error } = await supabaseAdmin.from('api_keys').upsert(
     {

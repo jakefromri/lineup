@@ -27,20 +27,20 @@ describe('token generation & hashing', () => {
     expect(a).not.toBe(b);
   });
 
-  it('hashToken returns the SHA-256 hex digest of the raw token', () => {
+  it('hashToken returns the SHA-256 hex digest of the raw token', async () => {
     const token = 'pat_abc123';
     const expected = createHash('sha256').update(token).digest('hex');
-    expect(hashToken(token)).toBe(expected);
+    expect(await hashToken(token)).toBe(expected);
   });
 
-  it('hashToken is deterministic', () => {
+  it('hashToken is deterministic', async () => {
     const token = generateToken('sk_');
-    expect(hashToken(token)).toBe(hashToken(token));
+    expect(await hashToken(token)).toBe(await hashToken(token));
   });
 
-  it('different tokens hash to different values', () => {
+  it('different tokens hash to different values', async () => {
     const a = generateToken('pat_');
     const b = generateToken('pat_');
-    expect(hashToken(a)).not.toBe(hashToken(b));
+    expect(await hashToken(a)).not.toBe(await hashToken(b));
   });
 });

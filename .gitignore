@@ -9,6 +9,9 @@ dist/
 build/
 .next/
 
+# Keep compiled @lineup/types so it's available without a build step
+!packages/types/dist/
+
 # Environment variables
 .env
 .env.local
@@ -36,3 +39,11 @@ test-results/
 # Logs
 logs/
 *.log
+
+# Internal working docs (not for public repo viewers)
+idea.md
+scope.md
+architecture.md
+adversarial-report.md
+build-report.md
+test-plan.md

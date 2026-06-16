@@ -109,12 +109,12 @@ export default function CalendarPage() {
   const dates = [...grouped.keys()].sort();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white">
       <Nav />
-      <div className="p-4 max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-4">
+      <div className="px-4 py-5 max-w-2xl mx-auto">
+        <div className="flex items-center justify-between mb-5">
           <p className="text-sm font-medium text-muted-foreground">{formatRangeLabel(rangeStart, rangeEnd)}</p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <Button variant="outline" size="icon" onClick={() => setRangeStart(addDays(rangeStart, -28))}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -130,18 +130,19 @@ export default function CalendarPage() {
         {isLoading ? (
           <p className="text-muted-foreground text-sm">Loading sessions…</p>
         ) : dates.length === 0 ? (
-          <Card>
-            <CardContent className="py-10 text-center text-muted-foreground text-sm">
-              No sessions scheduled in this range.
-            </CardContent>
-          </Card>
+          <div className="py-16 text-center text-muted-foreground text-sm border border-dashed border-border rounded-lg">
+            No sessions scheduled in this range.
+          </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-5">
             {dates.map((date) => (
               <div key={date}>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                  {formatDateLabel(date)}
-                </h3>
+                <div className="flex items-center gap-3 mb-2.5">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                    {formatDateLabel(date)}
+                  </h3>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
                 <div className="space-y-2">
                   {grouped.get(date)!.map((s) => {
                     const myKids = s.attendance.filter((a) => myKidIds.has(a.kidId));

@@ -32,7 +32,7 @@ export const resolveAuthContext = createMiddleware(async (c, next) => {
   let ctx: AuthContext;
 
   if (token.startsWith('sk_')) {
-    const hash = hashToken(token);
+    const hash = await hashToken(token);
     const { data: key } = await supabaseAdmin
       .from('api_keys')
       .select('tenant_id, revoked_at')
@@ -44,7 +44,7 @@ export const resolveAuthContext = createMiddleware(async (c, next) => {
     }
     ctx = { type: 'apikey', tenantId: key.tenant_id };
   } else if (token.startsWith('pat_')) {
-    const hash = hashToken(token);
+    const hash = await hashToken(token);
     const { data: parent } = await supabaseAdmin
       .from('parents')
       .select('id, tenant_id')

@@ -63,7 +63,7 @@ app.post('/join/:joinToken', jsonValidator(joinBodySchema), async (c) => {
   }
 
   const accessToken = generateToken('pat_');
-  const accessTokenHash = hashToken(accessToken);
+  const accessTokenHash = await hashToken(accessToken);
 
   const { data: parent, error: parentError } = await supabaseAdmin
     .from('parents')
