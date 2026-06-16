@@ -42,10 +42,11 @@ interface SessionFormState {
   name: string;
   date: string;
   time: string;
+  endTime: string; // empty string = not set
   location: string;
 }
 
-const emptyForm: SessionFormState = { name: '', date: '', time: '', location: '' };
+const emptyForm: SessionFormState = { name: '', date: '', time: '', endTime: '', location: '' };
 
 export default function Calendar() {
   const { token } = useAuth();
@@ -70,9 +71,17 @@ export default function Calendar() {
     enabled: !!token,
   });
 
+  const buildPayload = (f: SessionFormState) => ({
+    name: f.name,
+    date: f.date,
+    time: f.time,
+    endTime: f.endTime || null,
+    location: f.location,
+  });
+
   const createMutation = useMutation({
     mutationFn: (body: SessionFormState) =>
-      apiFetch('/api/sessions', token!, { method: 'POST', body: JSON.stringify(body) }),
+      apiFetch('/api/sessions', token!, { method: 'POST', body: JSON.stringify(buildPayload(body)) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sessions'] });
       closeForm();
@@ -82,7 +91,7 @@ export default function Calendar() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, body }: { id: string; body: SessionFormState }) =>
-      apiFetch(`/api/sessions/${id}`, token!, { method: 'PATCH', body: JSON.stringify(body) }),
+      apiFetch(`/api/sessions/${id}`, token!, { method: 'PATCH', body: JSON.stringify(buildPayload(body)) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sessions'] });
       closeForm();
@@ -107,7 +116,13 @@ export default function Calendar() {
 
   const startEdit = (s: SessionWithAttendance) => {
     setEditingId(s.id);
-    setForm({ name: s.name, date: s.date, time: s.time.slice(0, 5), location: s.location });
+    setForm({
+      name: s.name,
+      date: s.date,
+      time: s.time.slice(0, 5),
+      endTime: s.endTime ? s.endTime.slice(0, 5) : '',
+      location: s.location,
+    });
     setShowForm(true);
     setFormError(null);
   };
@@ -188,13 +203,25 @@ export default function Calendar() {
                   onChange={(e) => setForm({ ...form, date: e.target.value })}
                 />
               </div>
+              <div className="space-y-1.5" />
               <div className="space-y-1.5">
-                <Label htmlFor="s-time">Time</Label>
+                <Label htmlFor="s-time">Start time</Label>
                 <Input
                   id="s-time"
                   type="time"
                   value={form.time}
                   onChange={(e) => setForm({ ...form, time: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="s-end-time">
+                  End time <span className="text-muted-foreground font-normal">(optional)</span>
+                </Label>
+                <Input
+                  id="s-end-time"
+                  type="time"
+                  value={form.endTime}
+                  onChange={(e) => setForm({ ...form, endTime: e.target.value })}
                 />
               </div>
               <div className="space-y-1.5 col-span-2">
@@ -268,7 +295,9 @@ export default function Calendar() {
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-foreground">{s.name}</p>
                             <p className="text-sm text-muted-foreground mt-0.5">
-                              {formatTimeLabel(s.time)} · {s.location}
+                              {formatTimeLabel(s.time)}
+                              {s.endTime ? ` – ${formatTimeLabel(s.endTime)}` : ''}
+                              {' · '}{s.location}
                             </p>
                             <div className="flex items-center gap-2 mt-2">
                               <Badge variant="success">{attending} in</Badge>
