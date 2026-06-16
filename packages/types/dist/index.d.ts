@@ -62,6 +62,7 @@ export interface Session {
     name: string;
     date: string;
     time: string;
+    endTime: string | null;
     location: string;
     createdAt: string;
     updatedAt: string;
@@ -77,8 +78,14 @@ export interface SessionWithAttendance {
     name: string;
     date: string;
     time: string;
+    endTime: string | null;
     location: string;
     attendance: AttendanceEntry[];
+}
+export interface AnnouncementReaction {
+    emoji: string;
+    count: number;
+    reactedByMe: boolean;
 }
 export interface Announcement {
     id: string;
@@ -86,6 +93,16 @@ export interface Announcement {
     bodyHtml: string;
     createdAt: string;
     updatedAt: string;
+    reactions: AnnouncementReaction[];
+}
+export interface CoParentInvite {
+    id: string;
+    tenantId: string;
+    familyId: string;
+    inviteToken: string;
+    invitedByParentId: string | null;
+    acceptedAt: string | null;
+    createdAt: string;
 }
 export interface ApiKeyInfo {
     exists: boolean;
