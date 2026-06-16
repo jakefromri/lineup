@@ -25,3 +25,16 @@ export function getTeamName(slug: string): string | null {
 export function setTeamName(slug: string, name: string): void {
   localStorage.setItem(`${TEAM_NAME_PREFIX}${slug}`, name);
 }
+
+export function getStoredTeams(): Array<{ slug: string; name: string }> {
+  const teams: Array<{ slug: string; name: string }> = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith(TOKEN_PREFIX)) {
+      const slug = key.slice(TOKEN_PREFIX.length);
+      const name = getTeamName(slug) ?? slug;
+      teams.push({ slug, name });
+    }
+  }
+  return teams;
+}

@@ -84,10 +84,10 @@ export default function Join() {
   if (error || !joinInfo) {
     const code = error instanceof ApiRequestError ? error.code : null;
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-white p-4">
         <Card className="w-full max-w-sm">
           <CardHeader>
-            <CardTitle className="text-xl">lineup</CardTitle>
+            <CardTitle className="text-xl">teamsn</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-destructive">
@@ -102,7 +102,7 @@ export default function Join() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-white p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-xl">Join {joinInfo.teamName}</CardTitle>

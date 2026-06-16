@@ -54,17 +54,15 @@ export default function AnnouncementsPage() {
   const announcements = data?.announcements ?? [];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white">
       <Nav />
-      <div className="p-4 max-w-2xl mx-auto space-y-3">
+      <div className="px-4 py-5 max-w-2xl mx-auto space-y-3">
         {isLoading ? (
           <p className="text-muted-foreground text-sm">Loading announcements…</p>
         ) : announcements.length === 0 ? (
-          <Card>
-            <CardContent className="py-10 text-center text-muted-foreground text-sm">
-              No announcements yet.
-            </CardContent>
-          </Card>
+          <div className="py-16 text-center text-muted-foreground text-sm border border-dashed border-border rounded-lg">
+            No announcements yet.
+          </div>
         ) : (
           announcements.map((a) => (
             <Card key={a.id}>
