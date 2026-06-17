@@ -21,20 +21,17 @@ export default function Login() {
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        // Redirect back to this site's callback handler after clicking the link
         emailRedirectTo: `${window.location.origin}/login/callback`,
-        shouldCreateUser: false, // don't create new Supabase users here — only parents that joined via the app
+        // Note: we do NOT set shouldCreateUser: false here — Supabase can error on
+        // admin-created users with that flag. The backend (/api/auth/link-session)
+        // is the real guard: it rejects anyone not in the parents table.
       },
     });
 
     setLoading(false);
 
     if (otpError) {
-      // Supabase returns a generic error when the user doesn't exist but we've
-      // set shouldCreateUser: false — surface a friendly message.
-      setError(
-        'No account found for that email. Use the join link your coach shared to register, or contact your coach for help.',
-      );
+      setError('Something went wrong sending the login link. Please try again.');
       return;
     }
 
