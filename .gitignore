@@ -40,6 +40,9 @@ test-results/
 logs/
 *.log
 
+# One-off scripts (may contain prod credentials, not for public repo)
+scripts/
+
 # Internal working docs (not for public repo viewers)
 idea.md
 scope.md
