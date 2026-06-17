@@ -29,6 +29,7 @@ export default function LoginCallback() {
         const res = await apiFetch<{ accessToken: string; slug: string }>(
           '/api/auth/link-session',
           session.access_token,
+          { method: 'POST' },
         );
 
         if (!cancelled) {
