@@ -6,25 +6,26 @@ import { generateToken, hashToken } from '../lib/tokens.js';
 import { apiError } from '../lib/errors.js';
 import { jsonValidator } from '../lib/validation.js';
 import { resolveAuthContext, requireContext } from '../middleware/auth.js';
+import { resolveTenantId } from '../lib/context.js';
 
 const app = new Hono();
 
-app.use('*', resolveAuthContext, requireContext('manager'));
+app.use('*', resolveAuthContext, requireContext('manager', 'superadmin'));
 
 const WEB_URL = process.env.WEB_URL ?? 'http://localhost:5173';
 const ADMIN_URL = process.env.ADMIN_URL ?? 'http://localhost:5174';
 
 // ─── GET /api/team ────────────────────────────────────────────────────────────
-// Auth: manager
+// Auth: manager or superadmin (superadmin must pass X-Tenant-Id header)
 
 app.get('/', async (c) => {
   const ctx = c.get('authContext');
-  if (ctx.type !== 'manager') throw apiError(403, ErrorCode.ROLE_MISMATCH, 'Manager only');
+  const tenantId = resolveTenantId(ctx, c.req.header('X-Tenant-Id'));
 
   const { data: tenant, error: tenantError } = await supabaseAdmin
     .from('tenants')
     .select('id, name, slug, status, join_token')
-    .eq('id', ctx.tenantId)
+    .eq('id', tenantId)
     .single();
 
   if (tenantError || !tenant) {
@@ -34,13 +35,13 @@ app.get('/', async (c) => {
   const { data: apiKey } = await supabaseAdmin
     .from('api_keys')
     .select('created_at, revoked_at')
-    .eq('tenant_id', ctx.tenantId)
+    .eq('tenant_id', tenantId)
     .maybeSingle();
 
   const { data: memberships } = await supabaseAdmin
     .from('memberships')
     .select('id, user_id, accepted_at')
-    .eq('tenant_id', ctx.tenantId)
+    .eq('tenant_id', tenantId)
     .order('invited_at');
 
   const managers = await Promise.all(
@@ -72,7 +73,7 @@ app.get('/', async (c) => {
 });
 
 // ─── PATCH /api/team ──────────────────────────────────────────────────────────
-// Auth: manager
+// Auth: manager or superadmin
 
 const updateTeamSchema = z.object({
   name: z.string().min(1, 'name is required'),
@@ -80,13 +81,13 @@ const updateTeamSchema = z.object({
 
 app.patch('/', jsonValidator(updateTeamSchema), async (c) => {
   const ctx = c.get('authContext');
-  if (ctx.type !== 'manager') throw apiError(403, ErrorCode.ROLE_MISMATCH, 'Manager only');
+  const tenantId = resolveTenantId(ctx, c.req.header('X-Tenant-Id'));
   const body = c.req.valid('json');
 
   const { data: tenant, error } = await supabaseAdmin
     .from('tenants')
     .update({ name: body.name })
-    .eq('id', ctx.tenantId)
+    .eq('id', tenantId)
     .select('id, name, slug, status, join_token')
     .single();
 
@@ -106,18 +107,18 @@ app.patch('/', jsonValidator(updateTeamSchema), async (c) => {
 });
 
 // ─── POST /api/team/join-link/regenerate ─────────────────────────────────────
-// Auth: manager
+// Auth: manager or superadmin
 
 app.post('/join-link/regenerate', async (c) => {
   const ctx = c.get('authContext');
-  if (ctx.type !== 'manager') throw apiError(403, ErrorCode.ROLE_MISMATCH, 'Manager only');
+  const tenantId = resolveTenantId(ctx, c.req.header('X-Tenant-Id'));
 
   const joinToken = generateToken('');
 
   const { data: tenant, error } = await supabaseAdmin
     .from('tenants')
     .update({ join_token: joinToken })
-    .eq('id', ctx.tenantId)
+    .eq('id', tenantId)
     .select('join_token')
     .single();
 
@@ -129,18 +130,18 @@ app.post('/join-link/regenerate', async (c) => {
 });
 
 // ─── POST /api/team/api-key/regenerate ───────────────────────────────────────
-// Auth: manager
+// Auth: manager or superadmin
 
 app.post('/api-key/regenerate', async (c) => {
   const ctx = c.get('authContext');
-  if (ctx.type !== 'manager') throw apiError(403, ErrorCode.ROLE_MISMATCH, 'Manager only');
+  const tenantId = resolveTenantId(ctx, c.req.header('X-Tenant-Id'));
 
   const apiKey = generateToken('sk_');
   const keyHash = await hashToken(apiKey);
 
   const { error } = await supabaseAdmin.from('api_keys').upsert(
     {
-      tenant_id: ctx.tenantId,
+      tenant_id: tenantId,
       key_hash: keyHash,
       created_at: new Date().toISOString(),
       revoked_at: null,
@@ -156,16 +157,16 @@ app.post('/api-key/regenerate', async (c) => {
 });
 
 // ─── POST /api/team/managers/invite ──────────────────────────────────────────
-// Auth: manager
+// Auth: manager or superadmin
 
 app.post('/managers/invite', async (c) => {
   const ctx = c.get('authContext');
-  if (ctx.type !== 'manager') throw apiError(403, ErrorCode.ROLE_MISMATCH, 'Manager only');
+  const tenantId = resolveTenantId(ctx, c.req.header('X-Tenant-Id'));
 
   const inviteToken = generateToken('');
 
   const { error } = await supabaseAdmin.from('memberships').insert({
-    tenant_id: ctx.tenantId,
+    tenant_id: tenantId,
     role: 'manager',
     invite_token: inviteToken,
   });
@@ -178,18 +179,18 @@ app.post('/managers/invite', async (c) => {
 });
 
 // ─── DELETE /api/team/managers/:membershipId ─────────────────────────────────
-// Auth: manager
+// Auth: manager or superadmin
 
 app.delete('/managers/:membershipId', async (c) => {
   const ctx = c.get('authContext');
-  if (ctx.type !== 'manager') throw apiError(403, ErrorCode.ROLE_MISMATCH, 'Manager only');
+  const tenantId = resolveTenantId(ctx, c.req.header('X-Tenant-Id'));
   const membershipId = c.req.param('membershipId');
 
   const { data: membership } = await supabaseAdmin
     .from('memberships')
     .select('id, tenant_id, accepted_at')
     .eq('id', membershipId)
-    .eq('tenant_id', ctx.tenantId)
+    .eq('tenant_id', tenantId)
     .maybeSingle();
 
   if (!membership) {
@@ -200,7 +201,7 @@ app.delete('/managers/:membershipId', async (c) => {
     const { count } = await supabaseAdmin
       .from('memberships')
       .select('id', { count: 'exact', head: true })
-      .eq('tenant_id', ctx.tenantId)
+      .eq('tenant_id', tenantId)
       .not('accepted_at', 'is', null);
 
     if ((count ?? 0) <= 1) {

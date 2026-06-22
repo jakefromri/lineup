@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
 import type { SessionWithAttendance } from '@lineup/types';
-import { apiFetch, ApiRequestError } from '@/lib/api';
+import { ApiRequestError } from '@/lib/api';
+import { useTeamApi } from '@/hooks/useTeamApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -49,7 +49,7 @@ interface SessionFormState {
 const emptyForm: SessionFormState = { name: '', date: '', time: '', endTime: '', location: '' };
 
 export default function Calendar() {
-  const { token } = useAuth();
+  const { teamApiFetch, teamId } = useTeamApi();
   const qc = useQueryClient();
   const [rangeStart, setRangeStart] = useState(() => toISODate(new Date()));
   const rangeEnd = addDays(rangeStart, 27);
@@ -62,13 +62,12 @@ export default function Calendar() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['sessions', rangeStart, rangeEnd],
+    queryKey: ['sessions', teamId, rangeStart, rangeEnd],
     queryFn: () =>
-      apiFetch<{ sessions: SessionWithAttendance[] }>(
+      teamApiFetch<{ sessions: SessionWithAttendance[] }>(
         `/api/sessions?from=${rangeStart}&to=${rangeEnd}`,
-        token!
       ),
-    enabled: !!token,
+    enabled: true,
   });
 
   const buildPayload = (f: SessionFormState) => ({
@@ -81,7 +80,7 @@ export default function Calendar() {
 
   const createMutation = useMutation({
     mutationFn: (body: SessionFormState) =>
-      apiFetch('/api/sessions', token!, { method: 'POST', body: JSON.stringify(buildPayload(body)) }),
+      teamApiFetch('/api/sessions', { method: 'POST', body: JSON.stringify(buildPayload(body)) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sessions'] });
       closeForm();
@@ -91,7 +90,7 @@ export default function Calendar() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, body }: { id: string; body: SessionFormState }) =>
-      apiFetch(`/api/sessions/${id}`, token!, { method: 'PATCH', body: JSON.stringify(buildPayload(body)) }),
+      teamApiFetch(`/api/sessions/${id}`, { method: 'PATCH', body: JSON.stringify(buildPayload(body)) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sessions'] });
       closeForm();
@@ -100,7 +99,7 @@ export default function Calendar() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiFetch(`/api/sessions/${id}`, token!, { method: 'DELETE' }),
+    mutationFn: (id: string) => teamApiFetch(`/api/sessions/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sessions'] });
       setConfirmDeleteId(null);

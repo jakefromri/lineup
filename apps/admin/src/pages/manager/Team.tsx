@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Copy, Check, RefreshCw, UserPlus, Trash2, Pencil } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
 import type { ApiKeyInfo, ManagerSummary, TenantStatus } from '@lineup/types';
-import { apiFetch, ApiRequestError } from '@/lib/api';
+import { ApiRequestError } from '@/lib/api';
+import { useTeamApi } from '@/hooks/useTeamApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,7 +39,7 @@ function CopyableField({ value, label }: { value: string; label: string }) {
 }
 
 export default function Team() {
-  const { token } = useAuth();
+  const { teamApiFetch, teamId } = useTeamApi();
   const qc = useQueryClient();
 
   const [editingName, setEditingName] = useState(false);
@@ -52,14 +52,14 @@ export default function Team() {
   const [removeError, setRemoveError] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['team'],
-    queryFn: () => apiFetch<TeamData>('/api/team', token!),
-    enabled: !!token,
+    queryKey: ['team', teamId],
+    queryFn: () => teamApiFetch<TeamData>('/api/team'),
+    enabled: true,
   });
 
   const renameMutation = useMutation({
     mutationFn: (name: string) =>
-      apiFetch('/api/team', token!, { method: 'PATCH', body: JSON.stringify({ name }) }),
+      teamApiFetch('/api/team', { method: 'PATCH', body: JSON.stringify({ name }) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['team'] });
       setEditingName(false);
@@ -70,13 +70,13 @@ export default function Team() {
 
   const regenerateJoinLinkMutation = useMutation({
     mutationFn: () =>
-      apiFetch<{ parentJoinUrl: string }>('/api/team/join-link/regenerate', token!, { method: 'POST' }),
+      teamApiFetch<{ parentJoinUrl: string }>('/api/team/join-link/regenerate', { method: 'POST' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['team'] }),
   });
 
   const regenerateApiKeyMutation = useMutation({
     mutationFn: () =>
-      apiFetch<{ apiKey: string }>('/api/team/api-key/regenerate', token!, { method: 'POST' }),
+      teamApiFetch<{ apiKey: string }>('/api/team/api-key/regenerate', { method: 'POST' }),
     onSuccess: (res) => {
       setNewApiKey(res.apiKey);
       qc.invalidateQueries({ queryKey: ['team'] });
@@ -85,7 +85,7 @@ export default function Team() {
 
   const inviteManagerMutation = useMutation({
     mutationFn: () =>
-      apiFetch<{ inviteUrl: string }>('/api/team/managers/invite', token!, { method: 'POST' }),
+      teamApiFetch<{ inviteUrl: string }>('/api/team/managers/invite', { method: 'POST' }),
     onSuccess: (res) => {
       setInviteUrl(res.inviteUrl);
       qc.invalidateQueries({ queryKey: ['team'] });
@@ -94,7 +94,7 @@ export default function Team() {
 
   const removeManagerMutation = useMutation({
     mutationFn: (membershipId: string) =>
-      apiFetch(`/api/team/managers/${membershipId}`, token!, { method: 'DELETE' }),
+      teamApiFetch(`/api/team/managers/${membershipId}`, { method: 'DELETE' }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['team'] });
       setConfirmRemoveId(null);

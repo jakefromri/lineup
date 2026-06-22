@@ -3,24 +3,23 @@ import { ErrorCode } from '@lineup/types';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { apiError } from '../lib/errors.js';
 import { resolveAuthContext, requireContext } from '../middleware/auth.js';
+import { resolveTenantId } from '../lib/context.js';
 
 const app = new Hono();
 
-app.use('*', resolveAuthContext, requireContext('manager'));
+app.use('*', resolveAuthContext, requireContext('manager', 'superadmin'));
 
 // ─── GET /api/roster ──────────────────────────────────────────────────────────
-// Auth: manager
-// Returns every parent on the team with contact info and their active (non
-// -archived) kids.
+// Auth: manager or superadmin (superadmin must pass X-Tenant-Id header)
 
 app.get('/', async (c) => {
   const ctx = c.get('authContext');
-  if (ctx.type !== 'manager') throw apiError(403, ErrorCode.ROLE_MISMATCH, 'Manager only');
+  const tenantId = resolveTenantId(ctx, c.req.header('X-Tenant-Id'));
 
   const { data: parents, error: parentsError } = await supabaseAdmin
     .from('parents')
     .select('id, name, contact_email, contact_phone')
-    .eq('tenant_id', ctx.tenantId)
+    .eq('tenant_id', tenantId)
     .order('name');
 
   if (parentsError || !parents) {
@@ -30,7 +29,7 @@ app.get('/', async (c) => {
   const { data: kids, error: kidsError } = await supabaseAdmin
     .from('kids')
     .select('id, name, parent_id')
-    .eq('tenant_id', ctx.tenantId)
+    .eq('tenant_id', tenantId)
     .is('archived_at', null);
 
   if (kidsError) {
