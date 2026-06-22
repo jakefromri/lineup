@@ -49,7 +49,7 @@ interface SessionFormState {
 const emptyForm: SessionFormState = { name: '', date: '', time: '', endTime: '', location: '' };
 
 export default function Calendar() {
-  const { teamApiFetch, teamId } = useTeamApi();
+  const { teamApiFetch, teamId, token } = useTeamApi();
   const qc = useQueryClient();
   const [rangeStart, setRangeStart] = useState(() => toISODate(new Date()));
   const rangeEnd = addDays(rangeStart, 27);
@@ -67,7 +67,7 @@ export default function Calendar() {
       teamApiFetch<{ sessions: SessionWithAttendance[] }>(
         `/api/sessions?from=${rangeStart}&to=${rangeEnd}`,
       ),
-    enabled: true,
+    enabled: !!token,
   });
 
   const buildPayload = (f: SessionFormState) => ({

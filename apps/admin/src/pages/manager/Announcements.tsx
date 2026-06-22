@@ -22,7 +22,7 @@ function formatTimestamp(iso: string): string {
 }
 
 export default function Announcements() {
-  const { teamApiFetch, teamId } = useTeamApi();
+  const { teamApiFetch, teamId, token } = useTeamApi();
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -33,7 +33,7 @@ export default function Announcements() {
   const { data, isLoading } = useQuery({
     queryKey: ['announcements', teamId],
     queryFn: () => teamApiFetch<{ announcements: Announcement[] }>('/api/announcements'),
-    enabled: true,
+    enabled: !!token,
   });
 
   const createMutation = useMutation({

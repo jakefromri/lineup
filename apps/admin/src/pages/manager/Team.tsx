@@ -39,7 +39,7 @@ function CopyableField({ value, label }: { value: string; label: string }) {
 }
 
 export default function Team() {
-  const { teamApiFetch, teamId } = useTeamApi();
+  const { teamApiFetch, teamId, token } = useTeamApi();
   const qc = useQueryClient();
 
   const [editingName, setEditingName] = useState(false);
@@ -54,7 +54,7 @@ export default function Team() {
   const { data, isLoading } = useQuery({
     queryKey: ['team', teamId],
     queryFn: () => teamApiFetch<TeamData>('/api/team'),
-    enabled: true,
+    enabled: !!token,
   });
 
   const renameMutation = useMutation({

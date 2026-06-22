@@ -66,12 +66,12 @@ function CoParentInviteButton({ parentId }: { parentId: string }) {
 }
 
 export default function Roster() {
-  const { teamApiFetch, teamId } = useTeamApi();
+  const { teamApiFetch, teamId, token } = useTeamApi();
 
   const { data, isLoading } = useQuery({
     queryKey: ['roster', teamId],
     queryFn: () => teamApiFetch<{ parents: RosterEntry[] }>('/api/roster'),
-    enabled: true,
+    enabled: !!token,
   });
 
   const parents = data?.parents ?? [];

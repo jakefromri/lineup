@@ -15,5 +15,5 @@ export function useTeamApi() {
     });
   }
 
-  return { teamApiFetch, teamId };
+  return { teamApiFetch, teamId, token };
 }
