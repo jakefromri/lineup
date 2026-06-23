@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import type { TenantSummary, Tenant } from '@lineup/types';
 import { apiFetch, ApiRequestError } from '@/lib/api';
@@ -18,6 +19,7 @@ interface CreateResult {
 export default function TeamList() {
   const { token } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [newSlug, setNewSlug] = useState('');
@@ -196,24 +198,33 @@ export default function TeamList() {
                     <td className="px-4 py-3 text-muted-foreground">{t.managerCount}</td>
                     <td className="px-4 py-3 text-muted-foreground">{t.parentCount}</td>
                     <td className="px-4 py-3 text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className={
-                          t.status === 'active'
-                            ? 'text-destructive hover:bg-destructive/10 border-destructive/30'
-                            : 'text-emerald-600 hover:bg-emerald-50 border-emerald-200'
-                        }
-                        onClick={() =>
-                          statusMutation.mutate({
-                            id: t.id,
-                            status: t.status === 'active' ? 'inactive' : 'active',
-                          })
-                        }
-                        disabled={statusMutation.isPending}
-                      >
-                        {t.status === 'active' ? 'Deactivate' : 'Reactivate'}
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/admin/teams/${t.id}/calendar`)}
+                        >
+                          Manage
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={
+                            t.status === 'active'
+                              ? 'text-destructive hover:bg-destructive/10 border-destructive/30'
+                              : 'text-emerald-600 hover:bg-emerald-50 border-emerald-200'
+                          }
+                          onClick={() =>
+                            statusMutation.mutate({
+                              id: t.id,
+                              status: t.status === 'active' ? 'inactive' : 'active',
+                            })
+                          }
+                          disabled={statusMutation.isPending}
+                        >
+                          {t.status === 'active' ? 'Deactivate' : 'Reactivate'}
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}

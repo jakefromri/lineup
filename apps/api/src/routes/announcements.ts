@@ -5,7 +5,7 @@ import { supabaseAdmin } from '../lib/supabase.js';
 import { apiError } from '../lib/errors.js';
 import { jsonValidator } from '../lib/validation.js';
 import { resolveAuthContext, requireContext } from '../middleware/auth.js';
-import { requireTenantContext } from '../lib/context.js';
+import { requireTenantContext, resolveTenantId } from '../lib/context.js';
 
 const app = new Hono();
 
@@ -49,16 +49,17 @@ async function attachReactions(
 }
 
 // ─── GET /api/announcements ──────────────────────────────────────────────────
-// Auth: manager or parent — newest first, includes reaction counts
+// Auth: manager, superadmin, or parent — newest first, includes reaction counts
 
-app.get('/', requireContext('manager', 'parent'), async (c) => {
-  const ctx = requireTenantContext(c.get('authContext'));
+app.get('/', requireContext('manager', 'superadmin', 'parent'), async (c) => {
+  const ctx = c.get('authContext');
+  const tenantId = resolveTenantId(ctx, c.req.header('X-Tenant-Id'));
   const parentId = ctx.type === 'parent' ? ctx.parentId : null;
 
   const { data: announcements, error } = await supabaseAdmin
     .from('announcements')
     .select('id, author_name_snapshot, body_html, created_at, updated_at')
-    .eq('tenant_id', ctx.tenantId)
+    .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -87,23 +88,26 @@ const announcementBodySchema = z.object({
   bodyHtml: z.string(),
 });
 
-app.post('/', requireContext('manager'), jsonValidator(announcementBodySchema), async (c) => {
+app.post('/', requireContext('manager', 'superadmin'), jsonValidator(announcementBodySchema), async (c) => {
   const ctx = c.get('authContext');
-  if (ctx.type !== 'manager') throw apiError(403, ErrorCode.ROLE_MISMATCH, 'Manager only');
+  const tenantId = resolveTenantId(ctx, c.req.header('X-Tenant-Id'));
   const body = c.req.valid('json');
 
   if (isBlankHtml(body.bodyHtml)) {
     throw apiError(400, ErrorCode.VALIDATION, 'Announcement body cannot be empty');
   }
 
-  const { data: user } = await supabaseAdmin.auth.admin.getUserById(ctx.userId);
-  const authorName = user.user?.email ?? 'Unknown';
+  const userId = ctx.type === 'manager' || ctx.type === 'superadmin' ? ctx.userId : null;
+  const { data: userRecord } = userId
+    ? await supabaseAdmin.auth.admin.getUserById(userId)
+    : { data: null };
+  const authorName = userRecord?.user?.email ?? 'Unknown';
 
   const { data: announcement, error } = await supabaseAdmin
     .from('announcements')
     .insert({
-      tenant_id: ctx.tenantId,
-      author_user_id: ctx.userId,
+      tenant_id: tenantId,
+      author_user_id: userId!,
       author_name_snapshot: authorName,
       body_html: body.bodyHtml,
     })
@@ -130,10 +134,11 @@ app.post('/', requireContext('manager'), jsonValidator(announcementBodySchema), 
 });
 
 // ─── PATCH /api/announcements/:id ─────────────────────────────────────────────
-// Auth: manager — same non-empty validation as POST
+// Auth: manager or superadmin — same non-empty validation as POST
 
-app.patch('/:id', requireContext('manager'), jsonValidator(announcementBodySchema), async (c) => {
-  const ctx = requireTenantContext(c.get('authContext'));
+app.patch('/:id', requireContext('manager', 'superadmin'), jsonValidator(announcementBodySchema), async (c) => {
+  const ctx = c.get('authContext');
+  const tenantId = resolveTenantId(ctx, c.req.header('X-Tenant-Id'));
   const id = c.req.param('id');
   const body = c.req.valid('json');
 
@@ -145,7 +150,7 @@ app.patch('/:id', requireContext('manager'), jsonValidator(announcementBodySchem
     .from('announcements')
     .update({ body_html: body.bodyHtml, updated_at: new Date().toISOString() })
     .eq('id', id)
-    .eq('tenant_id', ctx.tenantId)
+    .eq('tenant_id', tenantId)
     .select('id, author_name_snapshot, body_html, created_at, updated_at')
     .maybeSingle();
 
@@ -171,17 +176,18 @@ app.patch('/:id', requireContext('manager'), jsonValidator(announcementBodySchem
 });
 
 // ─── DELETE /api/announcements/:id ────────────────────────────────────────────
-// Auth: manager
+// Auth: manager or superadmin
 
-app.delete('/:id', requireContext('manager'), async (c) => {
-  const ctx = requireTenantContext(c.get('authContext'));
+app.delete('/:id', requireContext('manager', 'superadmin'), async (c) => {
+  const ctx = c.get('authContext');
+  const tenantId = resolveTenantId(ctx, c.req.header('X-Tenant-Id'));
   const id = c.req.param('id');
 
   const { data: announcement } = await supabaseAdmin
     .from('announcements')
     .select('id')
     .eq('id', id)
-    .eq('tenant_id', ctx.tenantId)
+    .eq('tenant_id', tenantId)
     .maybeSingle();
 
   if (!announcement) {

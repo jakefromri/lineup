@@ -6,7 +6,7 @@ import { supabaseAdmin } from '../lib/supabase.js';
 import { apiError } from '../lib/errors.js';
 import { jsonValidator, queryValidator } from '../lib/validation.js';
 import { resolveAuthContext, requireContext } from '../middleware/auth.js';
-import { requireTenantContext } from '../lib/context.js';
+import { requireTenantContext, resolveTenantId } from '../lib/context.js';
 
 const app = new Hono();
 
@@ -38,10 +38,13 @@ const sessionsQuerySchema = z.object({
 
 app.get(
   '/',
-  requireContext('manager', 'parent', 'apikey'),
+  requireContext('manager', 'superadmin', 'parent', 'apikey'),
   queryValidator(sessionsQuerySchema),
   async (c) => {
-    const ctx = requireTenantContext(c.get('authContext'));
+    const ctx = c.get('authContext');
+    const tenantId = ctx.type === 'superadmin' || ctx.type === 'manager'
+      ? resolveTenantId(ctx, c.req.header('X-Tenant-Id'))
+      : requireTenantContext(ctx).tenantId;
     const { from, to } = c.req.valid('query');
 
     const rangeFrom = from ?? todayISO();
@@ -50,7 +53,7 @@ app.get(
     const { data: sessions, error: sessionsError } = await supabaseAdmin
       .from('sessions')
       .select('id, name, date, time, end_time, location')
-      .eq('tenant_id', ctx.tenantId)
+      .eq('tenant_id', tenantId)
       .gte('date', rangeFrom)
       .lte('date', rangeTo)
       .order('date')
@@ -63,7 +66,7 @@ app.get(
     const { data: kids, error: kidsError } = await supabaseAdmin
       .from('kids')
       .select('id, name, archived_at')
-      .eq('tenant_id', ctx.tenantId);
+      .eq('tenant_id', tenantId);
 
     if (kidsError) {
       throw apiError(500, ErrorCode.INTERNAL, 'Failed to load sessions');
@@ -124,14 +127,15 @@ const createSessionSchema = z.object({
   location: z.string().min(1, 'location is required'),
 });
 
-app.post('/', requireContext('manager', 'apikey'), jsonValidator(createSessionSchema), async (c) => {
-  const ctx = requireTenantContext(c.get('authContext'));
+app.post('/', requireContext('manager', 'superadmin', 'apikey'), jsonValidator(createSessionSchema), async (c) => {
+  const ctx = c.get('authContext');
+  const tenantId = resolveTenantId(ctx, c.req.header('X-Tenant-Id'));
   const body = c.req.valid('json');
 
   const { data: session, error } = await supabaseAdmin
     .from('sessions')
     .insert({
-      tenant_id: ctx.tenantId,
+      tenant_id: tenantId,
       name: body.name,
       date: body.date,
       time: body.time,
@@ -159,8 +163,9 @@ const updateSessionSchema = z.object({
   location: z.string().min(1).optional(),
 });
 
-app.patch('/:id', requireContext('manager', 'apikey'), jsonValidator(updateSessionSchema), async (c) => {
-  const ctx = requireTenantContext(c.get('authContext'));
+app.patch('/:id', requireContext('manager', 'superadmin', 'apikey'), jsonValidator(updateSessionSchema), async (c) => {
+  const ctx = c.get('authContext');
+  const tenantId = resolveTenantId(ctx, c.req.header('X-Tenant-Id'));
   const id = c.req.param('id');
   const body = c.req.valid('json');
 
@@ -175,7 +180,7 @@ app.patch('/:id', requireContext('manager', 'apikey'), jsonValidator(updateSessi
     .from('sessions')
     .update(update)
     .eq('id', id)
-    .eq('tenant_id', ctx.tenantId)
+    .eq('tenant_id', tenantId)
     .select('id, name, date, time, end_time, location')
     .maybeSingle();
 
@@ -192,15 +197,16 @@ app.patch('/:id', requireContext('manager', 'apikey'), jsonValidator(updateSessi
 // ─── DELETE /api/sessions/:id ─────────────────────────────────────────────────
 // Auth: manager or apikey — cascades to attendance rows
 
-app.delete('/:id', requireContext('manager', 'apikey'), async (c) => {
-  const ctx = requireTenantContext(c.get('authContext'));
+app.delete('/:id', requireContext('manager', 'superadmin', 'apikey'), async (c) => {
+  const ctx = c.get('authContext');
+  const tenantId = resolveTenantId(ctx, c.req.header('X-Tenant-Id'));
   const id = c.req.param('id');
 
   const { data: session } = await supabaseAdmin
     .from('sessions')
     .select('id')
     .eq('id', id)
-    .eq('tenant_id', ctx.tenantId)
+    .eq('tenant_id', tenantId)
     .maybeSingle();
 
   if (!session) {

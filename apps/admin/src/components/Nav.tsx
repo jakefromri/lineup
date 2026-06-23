@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useMatch, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,19 @@ export function Nav() {
   const navigate = useNavigate();
   const role = claims?.role;
 
-  const links = role === 'superadmin' ? superadminLinks : managerLinks;
+  const teamMatch = useMatch('/admin/teams/:teamId/*');
+  const managingTeamId = teamMatch?.params.teamId ?? null;
+
+  const links = managingTeamId
+    ? [
+        { to: `/admin/teams/${managingTeamId}/calendar`, label: 'Calendar' },
+        { to: `/admin/teams/${managingTeamId}/announcements`, label: 'Announcements' },
+        { to: `/admin/teams/${managingTeamId}/roster`, label: 'Roster' },
+        { to: `/admin/teams/${managingTeamId}/team`, label: 'Team' },
+      ]
+    : role === 'superadmin'
+      ? superadminLinks
+      : managerLinks;
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -33,6 +45,14 @@ export function Nav() {
         <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded font-medium">
           {role === 'superadmin' ? 'Superadmin' : 'Manager'}
         </span>
+        {managingTeamId && (
+          <Link
+            to="/admin/teams"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            ← All teams
+          </Link>
+        )}
         <div className="flex items-center gap-1 ml-2">
           {links.map((link) => (
             <NavLink
