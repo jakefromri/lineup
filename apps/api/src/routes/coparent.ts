@@ -6,6 +6,7 @@ import { generateToken, hashToken } from '../lib/tokens.js';
 import { apiError } from '../lib/errors.js';
 import { jsonValidator } from '../lib/validation.js';
 import { resolveAuthContext, requireContext } from '../middleware/auth.js';
+import { resolveTenantId } from '../lib/context.js';
 
 const app = new Hono();
 
@@ -66,14 +67,14 @@ app.post('/invite', resolveAuthContext, requireContext('parent'), async (c) => {
 });
 
 // ─── POST /api/team/parents/:parentId/co-parent-invite ───────────────────────
-// Auth: manager — creates a co-parent invite on behalf of a family (admin side)
+// Auth: manager or superadmin — creates a co-parent invite on behalf of a family
 
 const managerApp = new Hono();
-managerApp.use('*', resolveAuthContext, requireContext('manager'));
+managerApp.use('*', resolveAuthContext, requireContext('manager', 'superadmin'));
 
 managerApp.post('/:parentId/co-parent-invite', async (c) => {
   const ctx = c.get('authContext');
-  if (ctx.type !== 'manager') throw apiError(403, ErrorCode.ROLE_MISMATCH, 'Manager only');
+  const tenantId = resolveTenantId(ctx, c.req.header('X-Tenant-Id'));
   const parentId = c.req.param('parentId');
 
   // Verify parent belongs to this tenant
@@ -81,18 +82,18 @@ managerApp.post('/:parentId/co-parent-invite', async (c) => {
     .from('parents')
     .select('id, tenant_id')
     .eq('id', parentId)
-    .eq('tenant_id', ctx.tenantId)
+    .eq('tenant_id', tenantId)
     .maybeSingle();
 
   if (!parent) {
     throw apiError(404, ErrorCode.NOT_FOUND, 'Parent not found');
   }
 
-  const familyId = await ensureFamily(parentId, ctx.tenantId);
+  const familyId = await ensureFamily(parentId, tenantId);
   const inviteToken = generateToken('cpi_');
 
   const { error } = await supabaseAdmin.from('co_parent_invites').insert({
-    tenant_id: ctx.tenantId,
+    tenant_id: tenantId,
     family_id: familyId,
     invite_token: inviteToken,
     invited_by_parent_id: null, // manager-initiated

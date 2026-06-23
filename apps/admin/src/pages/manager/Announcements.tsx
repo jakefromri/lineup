@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
 import type { Announcement } from '@lineup/types';
-import { apiFetch, ApiRequestError } from '@/lib/api';
+import { ApiRequestError } from '@/lib/api';
+import { useTeamApi } from '@/hooks/useTeamApi';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RichTextEditor, RichTextView } from '@/components/RichTextEditor';
@@ -22,7 +22,7 @@ function formatTimestamp(iso: string): string {
 }
 
 export default function Announcements() {
-  const { token } = useAuth();
+  const { teamApiFetch, teamId, token } = useTeamApi();
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -31,14 +31,14 @@ export default function Announcements() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['announcements'],
-    queryFn: () => apiFetch<{ announcements: Announcement[] }>('/api/announcements', token!),
+    queryKey: ['announcements', teamId],
+    queryFn: () => teamApiFetch<{ announcements: Announcement[] }>('/api/announcements'),
     enabled: !!token,
   });
 
   const createMutation = useMutation({
     mutationFn: (bodyHtml: string) =>
-      apiFetch('/api/announcements', token!, { method: 'POST', body: JSON.stringify({ bodyHtml }) }),
+      teamApiFetch('/api/announcements', { method: 'POST', body: JSON.stringify({ bodyHtml }) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['announcements'] });
       closeForm();
@@ -48,7 +48,7 @@ export default function Announcements() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, bodyHtml }: { id: string; bodyHtml: string }) =>
-      apiFetch(`/api/announcements/${id}`, token!, {
+      teamApiFetch(`/api/announcements/${id}`, {
         method: 'PATCH',
         body: JSON.stringify({ bodyHtml }),
       }),
@@ -60,7 +60,7 @@ export default function Announcements() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiFetch(`/api/announcements/${id}`, token!, { method: 'DELETE' }),
+    mutationFn: (id: string) => teamApiFetch(`/api/announcements/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['announcements'] });
       setConfirmDeleteId(null);

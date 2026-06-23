@@ -1,20 +1,20 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { UserPlus, Copy, Check } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
 import type { RosterEntry } from '@lineup/types';
-import { apiFetch } from '@/lib/api';
+import { useTeamApi } from '@/hooks/useTeamApi';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-function CoParentInviteButton({ parentId, token }: { parentId: string; token: string }) {
+function CoParentInviteButton({ parentId }: { parentId: string }) {
+  const { teamApiFetch } = useTeamApi();
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const inviteMutation = useMutation({
     mutationFn: () =>
-      apiFetch<{ inviteUrl: string }>(`/api/team/parents/${parentId}/co-parent-invite`, token, {
+      teamApiFetch<{ inviteUrl: string }>(`/api/team/parents/${parentId}/co-parent-invite`, {
         method: 'POST',
       }),
     onSuccess: (res) => setInviteUrl(res.inviteUrl),
@@ -66,11 +66,11 @@ function CoParentInviteButton({ parentId, token }: { parentId: string; token: st
 }
 
 export default function Roster() {
-  const { token } = useAuth();
+  const { teamApiFetch, teamId, token } = useTeamApi();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['roster'],
-    queryFn: () => apiFetch<{ parents: RosterEntry[] }>('/api/roster', token!),
+    queryKey: ['roster', teamId],
+    queryFn: () => teamApiFetch<{ parents: RosterEntry[] }>('/api/roster'),
     enabled: !!token,
   });
 
@@ -109,7 +109,7 @@ export default function Roster() {
                   <tr key={p.id} className="hover:bg-muted/30 align-top">
                     <td className="px-4 py-3">
                       <p className="font-medium text-foreground whitespace-nowrap">{p.name}</p>
-                      <CoParentInviteButton parentId={p.id} token={token!} />
+                      <CoParentInviteButton parentId={p.id} />
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       <div className="flex flex-col gap-0.5">

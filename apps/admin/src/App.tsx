@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Login from '@/pages/Login';
 import AcceptInvite from '@/pages/AcceptInvite';
 import TeamList from '@/pages/superadmin/TeamList';
+import TeamManage from '@/pages/superadmin/TeamManage';
 import CalendarPage from '@/pages/manager/Calendar';
 import Announcements from '@/pages/manager/Announcements';
 import Roster from '@/pages/manager/Roster';
@@ -48,6 +49,12 @@ export default function App() {
 
           <Route path="/admin" element={<ProtectedLayout requiredRole="superadmin" />}>
             <Route path="teams" element={<TeamList />} />
+            <Route path="teams/:teamId" element={<TeamManage />}>
+              <Route path="calendar" element={<CalendarPage />} />
+              <Route path="announcements" element={<Announcements />} />
+              <Route path="roster" element={<Roster />} />
+              <Route path="team" element={<Team />} />
+            </Route>
           </Route>
 
           <Route path="/manager" element={<ProtectedLayout requiredRole="manager" />}>

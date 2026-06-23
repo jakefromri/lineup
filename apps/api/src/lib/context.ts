@@ -20,3 +20,19 @@ export function requireTenantContext(ctx: AuthContext): TenantAuthContext {
   }
   return ctx;
 }
+
+/**
+ * Resolves the effective tenantId for a request. For tenant-scoped contexts
+ * (manager, parent, apikey) it reads from the JWT claim. For superadmin it
+ * reads from the X-Tenant-Id request header, which the admin app sends when
+ * managing a specific team.
+ */
+export function resolveTenantId(ctx: AuthContext, tenantIdHeader?: string | null): string {
+  if (ctx.type === 'superadmin') {
+    if (!tenantIdHeader) {
+      throw apiError(400, ErrorCode.VALIDATION, 'X-Tenant-Id header is required for superadmin requests');
+    }
+    return tenantIdHeader;
+  }
+  return ctx.tenantId;
+}

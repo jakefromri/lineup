@@ -28,7 +28,7 @@ app.use('*', cors({
     if (allowed.includes(origin) || origin.endsWith('.vercel.app')) return origin;
     return null;
   },
-  allowHeaders: ['Authorization', 'Content-Type'],
+  allowHeaders: ['Authorization', 'Content-Type', 'X-Tenant-Id'],
   allowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
 }));
 
